@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:logger/src/logger.dart';
 import 'package:logger/src/log_printer.dart';
 import 'package:logger/src/ansi_color.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 /// Default implementation of [LogPrinter].
 ///
@@ -126,10 +127,10 @@ class PrettyPrinter extends LogPrinter {
     String? stackTraceStr;
     if (event.stackTrace == null) {
       if (methodCount > 0) {
-        stackTraceStr = formatStackTrace(StackTrace.current, methodCount);
+        stackTraceStr = formatStackTrace(Chain.current(), methodCount);
       }
     } else if (errorMethodCount > 0) {
-      stackTraceStr = formatStackTrace(event.stackTrace, errorMethodCount);
+      stackTraceStr = formatStackTrace(Chain.current(), errorMethodCount);
     }
 
     var errorStr = event.error?.toString();
@@ -148,24 +149,35 @@ class PrettyPrinter extends LogPrinter {
     );
   }
 
-  String? formatStackTrace(StackTrace? stackTrace, int methodCount) {
-    var lines = stackTrace.toString().split('\n');
-    var start = stackTraceBeginIndex + 3;
-    var end = start + methodCount+3;
-   
-    if (start > 0 && start < lines.length - methodCount - 3) {
-      lines = lines.sublist(start, end); //fix: too much trace ,reduce
+  String? formatStackTrace(Chain chain, int methodCount) {
+    chain =
+        chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
+    // 取出所有信息帧
+    var frames = chain.toTrace().frames;
+    frames.forEach((element) {
+      print(element.member);
+    });
+    // 找到当前函数的信息帧
+    final idx = frames.indexWhere((element) => element.member == "Logger.log") +
+        stackTraceBeginIndex;
+    if (idx == -1 || idx + 1 >= frames.length) {
+      return "";
     }
+
+    if (idx > 0 && idx < frames.length - methodCount) {
+      frames = frames.sublist(idx);
+    }
+
     var formatted = <String>[];
     var count = 0;
-    for (var line in lines) {
-      if (_discardDeviceStacktraceLine(line) ||
-          _discardWebStacktraceLine(line) ||
-          _discardBrowserStacktraceLine(line) ||
-          line.isEmpty) {
+    for (var line in frames) {
+      if (_discardDeviceStacktraceLine(line.location) ||
+          _discardWebStacktraceLine(line.location) ||
+          _discardBrowserStacktraceLine(line.location) ||
+          line.location.isEmpty) {
         continue;
       }
-      formatted.add('#$count   ${line.replaceFirst(RegExp(r'#\d+\s+'), '')}');
+      formatted.add('#$count ${line.location.replaceFirst(RegExp(r'#\d+\s+'), '')}');
       if (++count == methodCount) {
         break;
       }
@@ -221,8 +233,7 @@ class PrettyPrinter extends LogPrinter {
     var min = _twoDigits(now.minute);
     var sec = _twoDigits(now.second);
     var ms = _threeDigits(now.millisecond);
-    var timeSinceStart = now.difference(_startTime!).toString();
-    return '$h:$min:$sec.$ms (+$timeSinceStart)';
+    return '$h:$min:$sec.$ms';
   }
 
   // Handles any object that is causing JsonEncoder() problems

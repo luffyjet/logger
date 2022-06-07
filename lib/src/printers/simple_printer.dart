@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:logger/src/logger.dart';
 import 'package:logger/src/log_printer.dart';
 import 'package:logger/src/ansi_color.dart';
+import 'package:stack_trace/stack_trace.dart';
 
 /// Outputs simple log messages:
 /// ```
@@ -39,11 +40,12 @@ class SimplePrinter extends LogPrinter {
   @override
   List<String> log(LogEvent event) {
     var messageStr = _stringifyMessage(event.message);
-    var stackTraceStr = formatStackTrace(StackTrace.current);
+    var stackTraceStr = formatStackTrace(
+        Chain.current()); // Chain.forTrace(StackTrace.current);
     var errorStr = event.error != null ? '  ERROR: ${event.error}' : '';
     var timeStr = printTime ? '[${DateTime.now().toIso8601String()}]' : '';
     return [
-      '${_labelFor(event.level)}$timeStr[$stackTraceStr]:$messageStr$errorStr'
+      '$timeStr${_labelFor(event.level)}[$stackTraceStr]:$messageStr$errorStr'
     ];
   }
 
@@ -64,19 +66,21 @@ class SimplePrinter extends LogPrinter {
     }
   }
 
-  String? formatStackTrace(StackTrace? stackTrace) {
-    var lines = stackTrace.toString().split('\n');
-    var start = stackTraceBeginIndex + 4;
-    if (start > 0 && start < lines.length - 1) {
-      lines = lines.sublist(start, start + 1); //fix: too much trace ,reduce
+  String? formatStackTrace(Chain chain) {
+    // 将 core 和 flutter 包的堆栈合起来（即相关数据只剩其中一条）
+    chain = chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
+    // 取出所有信息帧
+    final frames = chain.toTrace().frames;
+    frames.forEach((element) {
+      print(element.member);
+    });
+    // 找到当前函数的信息帧
+    final idx = frames.indexWhere((element) => element.member == "Logger.log") + stackTraceBeginIndex;
+    if (idx == -1 || idx + 1 >= frames.length) {
+      return "";
     }
-    
-    var formatted = '${lines[0].replaceFirst(RegExp(r'#\d+\s+'), '')}';
-
-    if (formatted.isEmpty) {
-      return null;
-    } else {
-      return formatted;
-    }
+    // 调用当前函数的函数信息帧
+    final frame = frames[idx + 1];
+    return '${frame.location}';
   }
 }
