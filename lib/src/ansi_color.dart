@@ -33,7 +33,7 @@ class AnsiColor {
       return '';
     }
   }
-
+  
   String call(String msg) {
     if (color) {
       return '${this}$msg$ansiDefault';
