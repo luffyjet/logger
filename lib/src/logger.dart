@@ -48,7 +48,7 @@ class Logger {
 
   final LogFilter _filter;
   final LogPrinter _printer;
-  final LogOutput _output;
+  final List<LogOutput> _outputs;
   bool _active = true;
 
   /// Create a new instance of Logger.
@@ -59,15 +59,17 @@ class Logger {
   Logger({
     LogFilter? filter,
     LogPrinter? printer,
-    LogOutput? output,
+    List<LogOutput>? outputs,
     Level? level,
   })  : _filter = filter ?? DevelopmentFilter(),
         _printer = printer ?? PrettyPrinter(),
-        _output = output ?? ConsoleOutput() {
+        _outputs = outputs ?? [ConsoleOutput()] {
     _filter.init();
     _filter.level = level ?? Logger.level;
     _printer.init();
-    _output.init();
+    _outputs.forEach((o) {
+      o.init();
+    });
   }
 
   /// Log a message at level [Level.verbose].
@@ -112,19 +114,21 @@ class Logger {
     }
     var logEvent = LogEvent(level, message, error, stackTrace);
     if (_filter.shouldLog(logEvent)) {
-      var output = _printer.log(logEvent);
-
-      if (output.isNotEmpty) {
-        var outputEvent = OutputEvent(level, output);
-        // Issues with log output should NOT influence
-        // the main software behavior.
-        try {
-          _output.output(outputEvent);
-        } catch (e, s) {
-          print(e);
-          print(s);
+      _outputs.forEach((out) {
+        var logPrinter = out.logPrinter ?? _printer;
+        var output = logPrinter.log(logEvent);
+        if (output.isNotEmpty) {
+          var outputEvent = OutputEvent(level, output);
+          // Issues with log output should NOT influence
+          // the main software behavior.
+          try {
+            out.output(outputEvent);
+          } catch (e, s) {
+            print(e);
+            print(s);
+          }
         }
-      }
+      });
     }
   }
 
@@ -133,6 +137,8 @@ class Logger {
     _active = false;
     _filter.destroy();
     _printer.destroy();
-    _output.destroy();
+    _outputs.forEach((element) {
+      element.destroy();
+    });
   }
 }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:logger/logger.dart';
+import 'package:logger/src/log_printer.dart';
 import 'package:logger/src/logger.dart';
 import 'package:logger/src/log_output.dart';
 
@@ -10,12 +12,16 @@ class FileOutput extends LogOutput {
   final bool overrideExisting;
   final Encoding encoding;
   IOSink? _sink;
+  
+  @override
+  LogPrinter? logPrinter;
 
   FileOutput({
-    required this.file,
-    this.overrideExisting = false,
-    this.encoding = utf8,
-  });
+      required this.file,
+      this.logPrinter,
+      this.overrideExisting = false,
+      this.encoding = utf8
+      });
 
   @override
   void init() {
