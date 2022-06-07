@@ -154,9 +154,7 @@ class PrettyPrinter extends LogPrinter {
         chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
     // 取出所有信息帧
     var frames = chain.toTrace().frames;
-    frames.forEach((element) {
-      print(element.member);
-    });
+  
     // 找到当前函数的信息帧
     final idx = frames.indexWhere((element) => element.member == "Logger.log") +
         stackTraceBeginIndex;

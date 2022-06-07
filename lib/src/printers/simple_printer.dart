@@ -40,8 +40,7 @@ class SimplePrinter extends LogPrinter {
   @override
   List<String> log(LogEvent event) {
     var messageStr = _stringifyMessage(event.message);
-    var stackTraceStr = formatStackTrace(
-        Chain.current()); // Chain.forTrace(StackTrace.current);
+    var stackTraceStr = formatStackTrace(Chain.current()); // Chain.forTrace(StackTrace.current);
     var errorStr = event.error != null ? '  ERROR: ${event.error}' : '';
     var timeStr = printTime ? '[${DateTime.now().toIso8601String()}]' : '';
     return [
@@ -71,9 +70,7 @@ class SimplePrinter extends LogPrinter {
     chain = chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
     // 取出所有信息帧
     final frames = chain.toTrace().frames;
-    frames.forEach((element) {
-      print(element.member);
-    });
+ 
     // 找到当前函数的信息帧
     final idx = frames.indexWhere((element) => element.member == "Logger.log") + stackTraceBeginIndex;
     if (idx == -1 || idx + 1 >= frames.length) {
