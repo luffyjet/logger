@@ -31,27 +31,36 @@ class SimplePrinter extends LogPrinter {
   final bool printTime;
   final bool colors;
   final int stackTraceBeginIndex;
+  final int errorMethodCount;
 
   SimplePrinter(
       {this.stackTraceBeginIndex = 0,
-      this.printTime = false,
-      this.colors = false});
+      this.errorMethodCount = 8,
+      this.printTime = true,
+      this.colors = true});
 
   @override
   List<String> log(LogEvent event) {
     var messageStr = _stringifyMessage(event.message);
-    var stackTraceStr = formatStackTrace(Chain.current()); // Chain.forTrace(StackTrace.current);
-    var errorStr = event.error != null ? '  ERROR: ${event.error}' : '';
-    var timeStr = printTime ? '[${DateTime.now().toIso8601String()}]' : '';
+    var chan;
+    var stackTraceStr;
+    if(event.stackTrace != null){
+      stackTraceStr = event.stackTrace.toString();
+    }else{
+      chan = Chain.current();
+      stackTraceStr = formatStackTrace(chan, 1);
+    }
+
+    var errorStr = event.error != null ? '${event.error}' : '';
+    var timeStr = printTime ? '${DateTime.now().toIso8601String()}' : '';
     return [
-      '$timeStr${_labelFor(event.level)}[$stackTraceStr]:$messageStr$errorStr'
+      '$timeStr ${_labelFor(event.level)}:$messageStr$errorStr \nStackTrace:\n$stackTraceStr'
     ];
   }
 
   String _labelFor(Level level) {
     var prefix = levelPrefixes[level]!;
     var color = levelColors[level]!;
-
     return colors ? color(prefix) : prefix;
   }
 
@@ -65,19 +74,36 @@ class SimplePrinter extends LogPrinter {
     }
   }
 
-  String? formatStackTrace(Chain chain) {
-    // 将 core 和 flutter 包的堆栈合起来（即相关数据只剩其中一条）
-    chain = chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
+  String? formatStackTrace(Chain chain, methodCount) {
+    chain =
+        chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
     // 取出所有信息帧
-    final frames = chain.toTrace().frames;
- 
+    var frames = chain.toTrace().frames;
+
     // 找到当前函数的信息帧
-    final idx = frames.indexWhere((element) => element.member == "Logger.log") + stackTraceBeginIndex;
+    final idx = frames.lastIndexWhere((element) => element.member == "Logger.log") +1+ stackTraceBeginIndex;
     if (idx == -1 || idx + 1 >= frames.length) {
       return "";
     }
-    // 调用当前函数的函数信息帧
-    final frame = frames[idx + 1];
-    return '${frame.location}';
+
+    if (idx > 0 && idx < frames.length) {
+      frames = frames.sublist(idx);
+    }
+
+    var formatted = <String>[];
+    var count = 0;
+    for (var line in frames) {
+      formatted
+          .add('${line.location.replaceFirst(RegExp(r'#\d+\s+'), '')}');
+      if (++count == methodCount) {
+        break;
+      }
+    }
+
+    if (formatted.isEmpty) {
+      return null;
+    } else {
+      return formatted.join('\n');
+    }
   }
 }

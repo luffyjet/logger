@@ -129,8 +129,10 @@ class PrettyPrinter extends LogPrinter {
       if (methodCount > 0) {
         stackTraceStr = formatStackTrace(Chain.current(), methodCount);
       }
-    } else if (errorMethodCount > 0) {
-      stackTraceStr = formatStackTrace(Chain.current(), errorMethodCount);
+    } else {
+      if (errorMethodCount > 0) {
+        stackTraceStr = formatErrorStackTrace(event.stackTrace!, errorMethodCount);
+      }
     }
 
     var errorStr = event.error?.toString();
@@ -150,19 +152,17 @@ class PrettyPrinter extends LogPrinter {
   }
 
   String? formatStackTrace(Chain chain, int methodCount) {
-    chain =
-        chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
+    chain = chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
     // 取出所有信息帧
     var frames = chain.toTrace().frames;
-  
     // 找到当前函数的信息帧
-    final idx = frames.indexWhere((element) => element.member == "Logger.log") +
-        stackTraceBeginIndex;
+    final idx = frames.lastIndexWhere((element) => element.member == "Logger.log") +1+ stackTraceBeginIndex;
+
     if (idx == -1 || idx + 1 >= frames.length) {
       return "";
     }
 
-    if (idx > 0 && idx < frames.length - methodCount) {
+    if (idx > 0 && idx < frames.length) {
       frames = frames.sublist(idx);
     }
 
@@ -176,6 +176,30 @@ class PrettyPrinter extends LogPrinter {
         continue;
       }
       formatted.add('#$count ${line.location.replaceFirst(RegExp(r'#\d+\s+'), '')}');
+      if (++count == methodCount) {
+        break;
+      }
+    }
+
+    if (formatted.isEmpty) {
+      return null;
+    } else {
+      return formatted.join('\n');
+    }
+  }
+
+  String? formatErrorStackTrace(StackTrace trace, int methodCount) {
+    var frames = trace.toString().split('\n');
+    var formatted = <String>[];
+    var count = 0;
+    for (var line in frames) {
+      if (_discardDeviceStacktraceLine(line) ||
+          _discardWebStacktraceLine(line) ||
+          _discardBrowserStacktraceLine(line) ||
+          line.isEmpty) {
+        continue;
+      }
+      formatted.add('#$count ${line.replaceFirst(RegExp(r'#\d+\s+'), '')}');
       if (++count == methodCount) {
         break;
       }
