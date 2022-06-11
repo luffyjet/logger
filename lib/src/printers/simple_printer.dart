@@ -54,7 +54,7 @@ class SimplePrinter extends LogPrinter {
     var errorStr = event.error != null ? '${event.error}' : '';
     var timeStr = printTime ? '${DateTime.now().toIso8601String()}' : '';
     return [
-      '$timeStr ${_labelFor(event.level)}:$messageStr$errorStr \nStackTrace:\n$stackTraceStr'
+      '$timeStr ${_labelFor(event.level)}[$stackTraceStr]:$messageStr $errorStr'
     ];
   }
 
