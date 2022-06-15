@@ -76,14 +76,15 @@ class SimplePrinter extends LogPrinter {
 
   String? formatStackTrace(Chain chain, methodCount) {
     chain =
-        chain.foldFrames((frame) => frame.isCore || frame.package == "flutter");
+        chain.foldFrames((frame) => frame.isCore || frame.package == 'flutter');
     // 取出所有信息帧
     var frames = chain.toTrace().frames;
 
     // 找到当前函数的信息帧
-    final idx = frames.lastIndexWhere((element) => element.member == "Logger.log") +1+ stackTraceBeginIndex;
-    if (idx == -1 || idx + 1 >= frames.length) {
-      return "";
+    final idx = frames.lastIndexWhere((element) => element.member == 'Logger.log') +1+ stackTraceBeginIndex;
+
+    if (idx == -1 || idx > frames.length) {
+      return '';
     }
 
     if (idx > 0 && idx < frames.length) {
@@ -94,7 +95,7 @@ class SimplePrinter extends LogPrinter {
     var count = 0;
     for (var line in frames) {
       formatted
-          .add('${line.location.replaceFirst(RegExp(r'#\d+\s+'), '')}');
+          .add('${line.location.replaceFirst(RegExp(r'#\d+\s+'), '')} ${line.member}');
       if (++count == methodCount) {
         break;
       }
